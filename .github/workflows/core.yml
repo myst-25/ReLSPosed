@@ -1,4 +1,4 @@
-name: Core (Mirror Upstream Release)
+name: Core
 
 permissions:
   contents: write
@@ -11,25 +11,31 @@ on:
         required: true
         type: boolean
 
-  schedule:
-    - cron: "*/30 * * * *"   # every 30 min auto sync
-
   push:
     branches: [ master ]
+    tags: [ v* ]
+
+  merge_group:
+
+  schedule:
+    - cron: "*/30 * * * *"   # auto mirror every 30 min
 
 
 jobs:
-  mirror:
+  build:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------------------------
+      # Checkout
+      # ---------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
 
-      # -----------------------------
-      # Setup Python
-      # -----------------------------
+      # ---------------------------------
+      # Setup Python (no rebuilding anymore)
+      # ---------------------------------
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -39,18 +45,18 @@ jobs:
         run: pip install requests
 
 
-      # -----------------------------
+      # ---------------------------------
       # Create mirror script
-      # -----------------------------
+      # ---------------------------------
       - name: Create mirror script
         run: |
           cat << 'EOF' > mirror.py
           import requests
 
-          SOURCE = "https://api.github.com/repos/ThePedroo/ReLSPosed/releases/latest"
+          SOURCE_API = "https://api.github.com/repos/ThePedroo/ReLSPosed/releases/latest"
 
           print("Fetching latest release info...")
-          data = requests.get(SOURCE).json()
+          data = requests.get(SOURCE_API).json()
 
           assets = data["assets"]
 
@@ -65,20 +71,20 @@ jobs:
           download(release_asset["browser_download_url"], release_asset["name"])
           download(debug_asset["browser_download_url"], debug_asset["name"])
 
-          print("Done downloading files.")
+          print("Files downloaded successfully.")
           EOF
 
 
-      # -----------------------------
-      # Download upstream zips
-      # -----------------------------
+      # ---------------------------------
+      # Download upstream release files
+      # ---------------------------------
       - name: Download upstream release files
         run: python mirror.py
 
 
-      # -----------------------------
-      # Upload to YOUR release
-      # -----------------------------
+      # ---------------------------------
+      # Upload to YOUR GitHub Release
+      # ---------------------------------
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -89,9 +95,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
-      # -----------------------------
-      # Optional Telegram post (kept from your old workflow)
-      # -----------------------------
+      # ---------------------------------
+      # Optional Telegram (kept from your old workflow)
+      # ---------------------------------
       - name: Post to channel
         if: ${{ success() && inputs.post_telegram != 'false' }}
         env:
