@@ -1,0 +1,45 @@
+name: Mirror Release
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes
+
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Fetch latest upstream release
+        run: |
+          API="https://api.github.com/repos/ThePedroo/ReLSPosed/releases/latest"
+
+          curl -s $API > release.json
+
+          RELEASE_URL=$(jq -r '.assets[] | select(.name | contains("zygisk-release")) | .browser_download_url' release.json)
+          DEBUG_URL=$(jq -r '.assets[] | select(.name | contains("zygisk-debug")) | .browser_download_url' release.json)
+
+          echo "Downloading release zip..."
+          curl -L "$RELEASE_URL" -o release.zip
+
+          echo "Downloading debug zip..."
+          curl -L "$DEBUG_URL" -o debug.zip
+
+      - name: Upload to your GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Build (mirror)
+          files: |
+            release.zip
+            debug.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
