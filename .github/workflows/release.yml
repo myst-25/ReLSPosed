@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes
+    - cron: "*/30 * * * *"
 
 
 jobs:
@@ -24,22 +24,23 @@ jobs:
 
           curl -s $API > release.json
 
+          RELEASE_NAME=$(jq -r '.assets[] | select(.name | contains("zygisk-release")) | .name' release.json)
+          DEBUG_NAME=$(jq -r '.assets[] | select(.name | contains("zygisk-debug")) | .name' release.json)
+
           RELEASE_URL=$(jq -r '.assets[] | select(.name | contains("zygisk-release")) | .browser_download_url' release.json)
           DEBUG_URL=$(jq -r '.assets[] | select(.name | contains("zygisk-debug")) | .browser_download_url' release.json)
 
-          echo "Downloading release zip..."
-          curl -L "$RELEASE_URL" -o release.zip
+          echo "Downloading $RELEASE_NAME"
+          curl -L "$RELEASE_URL" -o "$RELEASE_NAME"
 
-          echo "Downloading debug zip..."
-          curl -L "$DEBUG_URL" -o debug.zip
+          echo "Downloading $DEBUG_NAME"
+          curl -L "$DEBUG_URL" -o "$DEBUG_NAME"
 
       - name: Upload to your GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Latest Build (mirror)
-          files: |
-            release.zip
-            debug.zip
+          files: "*.zip"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
